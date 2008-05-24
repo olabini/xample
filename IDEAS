@@ -1,0 +1,6 @@
+
+Stuff to do etc:
+
+- Partial matchers - that only work on part of a String and can be composed in some canonical way
+- Look through Martin's DSL examples and try to use them for implementation
+
