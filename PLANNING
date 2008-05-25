@@ -3,5 +3,6 @@
 - 0.0.2 = (Text) Work out the kinks so that more of Fowlers examples work
 - 0.0.3 = (Text) DSLs usings contexts and blocks
 - 0.0.4 = (Text) Line partial DSLs and combinations
+- 0.0.5 = (Text) Include a web based work bench (based on MErb or Rails?)
 - 0.1 = When the above works
 - 0.1.1 = (Code) First simple code support
