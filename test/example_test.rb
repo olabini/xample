@@ -28,6 +28,8 @@ Expectations do
                  with("foo").times(2)) do |e|
     e.finalize_example
   end
+
+  # These tests check the parsing of a single line
   
   expect ["foo"] do 
     repr("foo")
@@ -39,14 +41,6 @@ Expectations do
 
   expect ["foo", "bar"] do 
     repr("foo bar")
-  end
-
-  expect ["foo"] do 
-    repr("foo bar\nfoo")
-  end
-
-  expect ["bar"] do 
-    repr("foo bar\nbar")
   end
 
   expect ["one", "two"] do 
@@ -139,5 +133,16 @@ Expectations do
 
   expect ["blah", "@", "blah", "com", "bar"] do 
     repr('blah@blah.com bar', :separate_tokens => '@')
+  end
+
+
+  # These tests check the example unification
+  
+  expect ["foo"] do 
+    repr("foo bar\nfoo")
+  end
+
+  expect ["bar"] do 
+    repr("foo bar\nbar")
   end
 end
