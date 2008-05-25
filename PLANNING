@@ -1,0 +1,7 @@
+
+- 0.0.1 = (Text) Support for things like Jay's BNL language but not much more
+- 0.0.2 = (Text) Work out the kinks so that more of Fowlers examples work
+- 0.0.3 = (Text) DSLs usings contexts and blocks
+- 0.0.4 = (Text) Line partial DSLs and combinations
+- 0.1 = When the above works
+- 0.1.1 = (Code) First simple code support
