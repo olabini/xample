@@ -112,6 +112,7 @@ module Xample
         @parsed_actions.each do |pa|
           @generated_actions << eval(Ruby2Ruby.new.process([:iter, [:fcall, :proc], masgn, replace_with_literals(pa)]))
         end
+        
         self
       end
       
@@ -166,6 +167,7 @@ module Xample
       end
       
       def match_values(real, template)
+        p [:match_values, real, template] if $DEBUG
         values = []
         template_index = -1
         template.each do |val|
@@ -325,6 +327,7 @@ module Xample
       
       def add_new_optionals(tokens)
         @optionals += (tokens-@representation)
+        @optionals += (@representation-tokens)
         @optionals.uniq!
         tokens - @optionals
       end

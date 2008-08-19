@@ -8,6 +8,13 @@ bonus: $42 on new account
 DATA
   end
 
+  it "should invoke correct method with simple parameters and lots of noise words" do 
+    BonusRegistration.should_receive(:create).once.with(42, "$").and_return(Swallower.instance)
+    Xample::Tests::SimpleBonus.run(<<DATA)
+bonus: $42 on each (new) account
+DATA
+  end
+  
   it "should invoke correct method with simple parameters with variations in case" do 
     BonusRegistration.should_receive(:create).once.with(43, "$").and_return(Swallower.instance)
     Xample::Tests::SimpleBonus.run(<<DATA)
