@@ -9,8 +9,7 @@ module Xample
     
       def run(io_or_string)
         io = Utils::ensure_io(io_or_string)
-        raise NoMatch
-        # TODO implement
+        raise NoMatch unless @examples.match(io)
       end
     end      
   end

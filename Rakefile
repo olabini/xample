@@ -19,6 +19,7 @@ Spec::Rake::SpecTask.new(:spec) do |t|
   t.libs << "lib"
   t.spec_files = FileList['test/**/*_spec.rb']
   t.verbose = true
+  t.spec_opts = ["-fs", "--color"]
 end
 
 desc 'Generate RDoc'

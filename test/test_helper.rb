@@ -1,8 +1,18 @@
+$:.unshift File.join(File.dirname(__FILE__), '..', 'lib')
 require 'rubygems'
 require 'expectations'
-require File.dirname(__FILE__) + '/../lib/xample'
+require 'spec'
+require 'xample'
 
 module BonusRegistration
+end
+
+class Swallower
+  include Singleton
+  def method_missing(name, *args, &block)
+    $stderr.puts "Swallowed #{name}(#{args.inspect})" if $DEBUG
+    Swallower.instance
+  end
 end
 
 module Xample

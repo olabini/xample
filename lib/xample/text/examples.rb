@@ -15,9 +15,15 @@ module Xample
       end
 
       attr_reader :examples
+      attr_reader :options
       
       def initialize
         @examples = []
+        @options = {}
+      end
+      
+      def option
+        @options
       end
       
       def xample(io_or_string)
@@ -25,6 +31,16 @@ module Xample
         x = Example.new(io.read)
         self.examples << x
         x
+      end
+      
+      def match(io)
+        str = io.read
+        result = false
+        self.examples.each do |x|
+          result |= x.match(str)
+          return true if result
+        end
+        result
       end
     end
   end
