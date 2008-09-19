@@ -1,8 +1,8 @@
 $:.unshift File.join(File.dirname(__FILE__), '..', 'lib')
 require 'rubygems'
-require 'expectations'
 require 'spec'
 require 'xample'
+require 'singleton'
 
 module BonusRegistration
 end

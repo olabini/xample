@@ -129,8 +129,23 @@ describe Example do
     it "should handle ignore correctly" do 
       repr('blah@blah.com bar', :ignore => '@').should == ["blah", "blah", "com", "bar"]
     end
+
     it "should separate on dot with longer statement" do 
       repr("foo.bar").should == ["foo", "bar"]
+    end
+    
+    it "should separate and ignore correctly for a larger mail address" do 
+      repr('blah@blah.com bar', :separate_tokens => '@').should == ["blah", "@", "blah", "com", "bar"]
+    end
+
+    describe "unification" do 
+      it "should unify a simple atom" do 
+        repr("foo bar\nfoo").should == ["foo"]
+      end
+      
+      it "should unify a simple atom in opposite order" do 
+        repr("foo bar\nbar").should == ["bar"]
+      end
     end
   end
 end

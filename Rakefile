@@ -5,13 +5,7 @@ require 'rake/testtask'
 require 'spec/rake/spectask'
 require 'ruby-tags'
 
-task :default => [:test, :spec]
-
-Rake::TestTask.new do |t|
-  t.libs << "test"
-  t.pattern = 'test/**/*_test.rb'
-  t.verbose = true
-end
+task :default => [:spec]
 
 desc "Run all specs"
 Spec::Rake::SpecTask.new(:spec) do |t|
