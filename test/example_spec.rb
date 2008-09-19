@@ -129,5 +129,8 @@ describe Example do
     it "should handle ignore correctly" do 
       repr('blah@blah.com bar', :ignore => '@').should == ["blah", "blah", "com", "bar"]
     end
+    it "should separate on dot with longer statement" do 
+      repr("foo.bar").should == ["foo", "bar"]
+    end
   end
 end

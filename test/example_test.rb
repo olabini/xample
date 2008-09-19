@@ -8,10 +8,6 @@ end
 
 Expectations do 
   # These tests check the parsing of a single line
-  expect ["foo", "bar"] do 
-    repr('foo.bar')
-  end
-
   expect ["blah", "@", "blah", "com", "bar"] do 
     repr('blah@blah.com bar', :separate_tokens => '@')
   end
