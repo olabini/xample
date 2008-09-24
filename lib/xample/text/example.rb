@@ -227,7 +227,12 @@ module Xample
           when :lit, :str
             lit = @real_literals.find { |lit_value, lit_num| lit_value == tree[1].to_s}
             if lit
-              return [:dvar, :"literal_value_#{lit[1]}"]
+              case tree[1]
+              when Symbol
+                return [:call, [:dvar, :"literal_value_#{lit[1]}"], :to_sym]
+              else
+                return [:dvar, :"literal_value_#{lit[1]}"]
+              end
             end
           when :call
             lit = @real_literals.find { |lit_value, _, _| lit_value.kind_of?(Array) && lit_value.join("_").to_sym == tree[2]}

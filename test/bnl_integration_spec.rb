@@ -30,4 +30,29 @@ describe Xample::Text::DSL, "BNL" do
       [["for", "each", "as", "of", "the", "in"], 
        ["for", "with", "in"]]
   end
+  
+  it "should recognize simple examples and call create" do 
+    BonusRegistration2.should_receive(:create).once.with(7300, "$").and_return(Swallower.instance)
+    Xample::Tests::BNL.run(<<DSL)
+bonus $7,300 for each new account as of the last 4 months, payable in May
+DSL
+  end
+  
+  it "should call new account with correct parameters" do 
+    mock = mock("RegistrationResult")
+    mock.should_receive(:new_account).once.with(4, :payable => "May")
+    BonusRegistration2.stub!(:create).and_return(mock)
+    Xample::Tests::BNL.run(<<DSL)
+bonus $7,300 for each new account as of the last 4 months, payable in May
+DSL
+  end
+
+  it "should call new account with correct parameters when called with less parts" do 
+    mock = mock("RegistrationResult")
+    mock.should_receive(:new_account).once.with(5, :payable => "April")
+    BonusRegistration2.stub!(:create).and_return(mock)
+    Xample::Tests::BNL.run(<<DSL)
+bonus $1200 each new account last 5 months, payable April
+DSL
+  end
 end
