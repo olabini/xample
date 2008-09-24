@@ -31,6 +31,7 @@ module Xample
       end
       
       attr_reader :representation
+      attr_reader :optionals
       
       def initialize(str, options={})
         @options = merge_options(options)
@@ -231,7 +232,9 @@ module Xample
           when :call
             lit = @real_literals.find { |lit_value, _, _| lit_value.kind_of?(Array) && lit_value.join("_").to_sym == tree[2]}
             if lit
-              name_and_method_name = [:array, [:dvar, :"literal_value_#{lit[1]}"] + (replace_with_literals(tree[3]) || [:array, []])[1]]
+              rest = replace_with_literals(tree[3])
+              name_and_method_name = [:array, [:dvar, :"literal_value_#{lit[1]}"]]
+              name_and_method_name += rest[1..-1] if rest
               return [:call, replace_with_literals(tree[1]), :send, name_and_method_name]
             end            
           end

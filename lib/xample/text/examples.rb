@@ -2,6 +2,7 @@
 module Xample
   module Text
     class Examples
+      include Enumerable
       class << self
         def parse(&block)
           examples = Examples.new
@@ -20,6 +21,10 @@ module Xample
       def initialize
         @examples = []
         @options = {}
+      end
+      
+      def each(&block)
+        examples.each(&block)
       end
       
       def option

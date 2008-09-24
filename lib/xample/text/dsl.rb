@@ -3,6 +3,7 @@ require 'stringio'
 module Xample
   module Text
     class DSL
+      attr_reader :examples
       def initialize(&block)
         @examples = Examples.parse(&block)
       end

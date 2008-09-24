@@ -1,6 +1,6 @@
 require File.dirname(__FILE__) + "/test_helper"
 
-describe Xample::Text::DSL do 
+describe Xample::Text::DSL, "SimpleBonus" do 
   it "should invoke correct method with simple parameters" do 
     BonusRegistration.should_receive(:create).once.with(42, "$").and_return(Swallower.instance)
     Xample::Tests::SimpleBonus.run(<<DATA)
