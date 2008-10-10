@@ -10,7 +10,7 @@ module Xample
         :keep_case => false,
       }
 
-      def merge_options(opts)
+      def self.merge_options(opts)
         obj = DEFAULT_OPTIONS.inject({}) do |hash, (key, value)|
           hash[key] = value.kind_of?(Array) ? value.dup : value
           hash
@@ -34,10 +34,13 @@ module Xample
       attr_reader :optionals
       
       def initialize(str, options={})
-        @options = merge_options(options)
+        @options = Example.merge_options(options)
         @str = str
         @representation = nil
         @actions = []
+        @parsed_actions = []
+        @real_literals = []
+        @generated_actions = []
 
         # This implementation ignore all words that are counted as
         # optional, not caring about position. This is definitely
@@ -57,36 +60,39 @@ module Xample
         @actions << block
       end
       
-      def finalize_example
+      def analyze_lines!
         if self.line_division
           @str.each_line do |line|
             analyze(line.chomp) unless line.chomp == ''
           end
         end
-
-        
-        possible_literals = []
-        @parsed_actions = []
-        @actions.each do |blk|
-          c = Class.new
-          c.send :define_method, :synthetic_template_method, &blk
-          tree = ParseTree.translate(c, :synthetic_template_method)
-          tree = tree[2][2]
-          @parsed_actions << tree
-          literals = find_literals(tree)
-          possible_literals += literals.inject([]) do |sum, val|
-            sum << val
-            if val.kind_of?(String)
-              splitted = val.split('_')
-              if splitted.length > 1
-                sum << splitted
-              end
+      end
+      
+      def find_possible_literals_in_code(blk)
+        c = Class.new
+        c.send :define_method, :synthetic_template_method, &blk
+        tree = ParseTree.translate(c, :synthetic_template_method)
+        tree = tree[2][2]
+        @parsed_actions << tree
+        literals = find_literals(tree)
+        literals.inject([]) do |sum, val|
+          sum << val
+          if val.kind_of?(String)
+            splitted = val.split('_')
+            if splitted.length > 1
+              sum << splitted
             end
-            sum
           end
-          possible_literals.uniq!
+          sum
         end
-        @real_literals = []
+      end
+      
+      def finalize_example
+        analyze_lines!
+
+        possible_literals = @actions.inject([]) do |sum, blk|
+          sum + find_possible_literals_in_code(blk)
+        end.uniq
 
         possible_literals.each do |pl|
           if @representation.include?(pl)
@@ -104,17 +110,18 @@ module Xample
           end
         end
 
-        @real_literals_sorted = @real_literals.sort_by do |v|
-          v[1]
-        end
+        @real_literals_sorted = @real_literals.sort_by { |v| v[1] }
 
-        @generated_actions = []
-        masgn = masng_for_literals(@real_literals_sorted)
-        @parsed_actions.each do |pa|
-          @generated_actions << eval(Ruby2Ruby.new.process([:iter, [:fcall, :proc], masgn, replace_with_literals(pa)]))
-        end
+        generate_actions!
         
         self
+      end
+      
+      def generate_actions!
+        masgn = masng_for_literals(@real_literals_sorted)
+        @generated_actions = @parsed_actions.map do |pa|
+          eval(Ruby2Ruby.new.process([:iter, [:fcall, :proc], masgn, replace_with_literals(pa)]))
+        end
       end
       
       def match(str)
@@ -319,7 +326,7 @@ module Xample
       def analyze(line)
         tokens = tokens_for(line)
         if @representation
-          tokens = add_new_optionals(tokens)
+          tokens = add_optionals_as_intersection_of(tokens)
           if better(tokens)
             @representation = tokens
           end
@@ -333,11 +340,11 @@ module Xample
         tokens.length < @representation.length
       end
       
-      def add_new_optionals(tokens)
-        @optionals += (tokens-@representation)
-        @optionals += (@representation-tokens)
+      def add_optionals_as_intersection_of(repr)
+        @optionals += (repr-@representation)
+        @optionals += (@representation-repr)
         @optionals.uniq!
-        tokens - @optionals
+        repr - @optionals
       end
     end
   end
