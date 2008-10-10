@@ -5,7 +5,16 @@ require 'rake/testtask'
 require 'spec/rake/spectask'
 require 'ruby-tags'
 
+def flog(output, *directories)
+  system("find #{directories.join(" ")} -name \\*.rb|xargs flog")
+end
+
 task :default => [:spec]
+
+desc "Flog all"
+task :flog do
+  flog "all", 'lib'
+end
 
 desc "Run all specs"
 Spec::Rake::SpecTask.new(:spec) do |t|

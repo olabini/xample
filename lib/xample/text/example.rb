@@ -39,8 +39,6 @@ module Xample
         @representation = nil
         @actions = []
         @parsed_actions = []
-        @real_literals = []
-        @generated_actions = []
 
         # This implementation ignore all words that are counted as
         # optional, not caring about position. This is definitely
@@ -86,32 +84,58 @@ module Xample
           sum
         end
       end
-      
-      def finalize_example
-        analyze_lines!
 
+      def raw_literal?(pl)
+        @representation.include?(pl)
+      end
+      
+      def divided_literal?(pl)
+        pl.kind_of?(Array)
+      end
+      
+      def set_literal_data(pl, real_literals)
+        index = @representation.index(pl)
+        @representation[index] = [:literal, typeof(pl), real_literals.length]
+        real_literals << [pl, index]
+      end
+
+      def set_divided_literal_data(pl, real_literals)
+        match = sliding_find(@representation, pl)
+        if match
+          (match[1]...(pl.length)).each do |lenix|
+            @representation[match[0] + lenix - match[1]] = [:divided_literal, lenix == match[1], real_literals.length, lenix]
+          end
+          real_literals << [pl, *match]
+        end
+      end
+      
+      def identify_real_literals(possible_literals)
+        real_literals = []
+
+        possible_literals.each do |pl|
+          case
+          when raw_literal?(pl)
+            set_literal_data(pl, real_literals)
+          when divided_literal?(pl)
+            set_divided_literal_data(pl, real_literals)
+          end
+        end
+
+        real_literals
+      end
+
+      def analyze_literals!
         possible_literals = @actions.inject([]) do |sum, blk|
           sum + find_possible_literals_in_code(blk)
         end.uniq
 
-        possible_literals.each do |pl|
-          if @representation.include?(pl)
-            index = @representation.index(pl)
-            @representation[index] = [:literal, typeof(pl), @real_literals.length]
-            @real_literals << [pl, index]
-          elsif pl.kind_of?(Array)
-            match = sliding_find(@representation, pl)
-            if match
-              (match[1]...(pl.length)).each do |lenix|
-                @representation[match[0] + lenix - match[1]] = [:divided_literal, lenix == match[1], @real_literals.length, lenix]
-              end
-              @real_literals << [pl, *match]
-            end
-          end
-        end
-
+        @real_literals = identify_real_literals(possible_literals)
         @real_literals_sorted = @real_literals.sort_by { |v| v[1] }
-
+      end
+      
+      def finalize_example
+        analyze_lines!
+        analyze_literals!
         generate_actions!
         
         self
@@ -120,7 +144,11 @@ module Xample
       def generate_actions!
         masgn = masng_for_literals(@real_literals_sorted)
         @generated_actions = @parsed_actions.map do |pa|
-          eval(Ruby2Ruby.new.process([:iter, [:fcall, :proc], masgn, replace_with_literals(pa)]))
+          eval(Ruby2Ruby.new.process(
+                                     [:iter, 
+                                      [:fcall, :proc], 
+                                      masgn, 
+                                      replace_with_literals(pa)]))
         end
       end
       
@@ -174,37 +202,43 @@ module Xample
         end
       end
       
-      def match_values(real, template)
-        p [:match_values, real, template] if $DEBUG
-        values = []
-        template_index = -1
-        template.each do |val|
-          template_index += 1
-          tval = real[template_index]
-          if !val.kind_of?(Array)
-            return nil if (@options[:keep_case] ? tval != val : tval.downcase != val.downcase)
-            return nil if typeof(tval) != typeof(val)
-          else 
-            if val[0] == :literal
-              return nil if typeof(tval) != val[1]
-              values << to_type(tval, val[1])
-            elsif val[0] == :divided_literal
-              xval = val[1] ? [] : values.last
-              if val[1] && val[3] != 0
-                xval += @real_literals[val[2]][0][0, val[3]]
-              end
-              return nil if typeof(tval) != :str
-              xval << tval
-              values << xval if val[1]
+      def match_value(value, tvalue, values)
+        unless Array === value
+          return nil if (@options[:keep_case] ? tvalue != value : tvalue.downcase != value.downcase)
+          return nil if typeof(tvalue) != typeof(value)
+        else 
+          if value[0] == :literal
+            return nil if typeof(tvalue) != value[1]
+            values << to_type(tvalue, value[1])
+          elsif value[0] == :divided_literal
+            xval = value[1] ? [] : values.last
+            if value[1] && value[3] != 0
+              xval += @real_literals[value[2]][0][0, value[3]]
             end
+            return nil if typeof(tvalue) != :str
+            xval << tvalue
+            values << xval if value[1]
           end
         end
-        if template_index < real.length-1
-          return nil
+        return true
+      end
+      
+      def match_values(real, template)
+        values = []
+
+        return nil if template.length < real.length
+
+        template.each_with_index do |val, ti|
+          return nil unless match_value(val, real[ti], values)
         end
-        return values.map do |val|
-          if val.kind_of?(Array)
-            if !@options[:keep_case]
+
+        transform_messages(values)
+      end
+      
+      def transform_messages(values)
+        values.map do |val|
+          if Array === val
+            unless @options[:keep_case]
               val.join("_").downcase.to_sym
             else
               val.join("_").to_sym
