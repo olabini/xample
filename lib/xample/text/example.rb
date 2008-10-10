@@ -61,7 +61,7 @@ module Xample
       def analyze_lines!
         if self.line_division
           @str.each_line do |line|
-            analyze(line.chomp) unless line.chomp == ''
+            analyze(line.strip) unless line.strip == ''
           end
         end
       end

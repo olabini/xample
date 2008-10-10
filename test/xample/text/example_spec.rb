@@ -47,6 +47,7 @@ describe Example do
       x = Example.new("str1", :abc => "foo", :ignore => "something")
       x.instance_variable_get(:@str).should == "str1"
       x.instance_variable_get(:@actions).should == []
+      x.instance_variable_get(:@parsed_actions).should == []
       x.instance_variable_get(:@options).should == 
         Example.merge_options(:abc => "foo", :ignore => "something")
       x.representation.should be_nil
@@ -70,33 +71,76 @@ describe Example do
     end
   end
   
-  describe "finalize_example" do 
-  end
-  describe "match" do 
-  end
-  describe "simple_match" do 
-  end
-  describe "sliding_find" do 
-  end
-  describe "invoke_actions_with_values" do 
-  end
-  describe "match_values" do 
-  end
-  describe "masng_for_literals" do 
-  end
-  describe "replace_with_literals" do 
-  end
-  describe "typeof" do 
-  end
-  describe "to_type" do 
-  end
-  describe "find_literals" do 
-  end
-  describe "tokens_for" do 
-  end
-  describe "analyze" do 
+  describe "analyze_lines!" do 
+    it "should not do anything if not line_division" do 
+      str = mock("str")
+      x = Example.new(str)
+      x.should_receive(:line_division).and_return(false)
+      x.analyze_lines!
+    end
+
+    it "should process each line of string if line division" do 
+      str = mock("str")
+      x = Example.new(str)
+      x.should_receive(:line_division).and_return(true)
+      str.should_receive(:each_line)
+      x.analyze_lines!
+    end
+
+    it "should not do anything with empty lines" do 
+      x = Example.new("\n \n  \n\t\n     \t\f  ")
+      x.should_receive(:line_division).and_return(true)
+      x.should_not_receive(:analyze)
+      x.analyze_lines!
+    end
+    
+    it "should analyze everything except empty lines" do 
+      x = Example.new("a\nb\nc \n\n d ")
+      x.should_receive(:line_division).and_return(true)
+      x.should_receive(:analyze).once.with("a").ordered
+      x.should_receive(:analyze).once.with("b").ordered
+      x.should_receive(:analyze).once.with("c").ordered
+      x.should_receive(:analyze).once.with("d").ordered
+      x.analyze_lines!
+    end
   end
 
+  describe "parse_tree_for" do 
+    it "should return only the block part of a parse tree" do 
+      Example.new("").parse_tree_for(proc{ 1 }).should == 
+        [:lit, 1]
+      Example.new("").parse_tree_for(proc{ |x| puts x }).should == 
+        [:fcall, :puts, [:array, [:dvar, :x]]]
+    end
+  end
+  
+  describe "find_possible_literals_in_code" do 
+    it "should find all possible literals" do 
+      x = Example.new("str")
+      tree = [:call, [:call, [:const, :BonusRegistration], :create, [:array, [:lit, 1000], [:str, "$"]]], :on_new_account]
+      x.should_receive(:parse_tree_for).and_return(tree)
+      x.find_possible_literals_in_code(proc{ }).should == ["on_new_account", ["on", "new", "account"], "create", "1000", "$"]
+      x.instance_variable_get(:@parsed_actions).should == [tree]
+    end
+  end
+
+  describe "raw_literal?" do 
+    it "should recognize anything from @representation"
+  end
+
+  describe "divided_literal?" do 
+    it "should recognize any array" do 
+      Example.new("str").divided_literal?("fo").should be_false
+      Example.new("str").divided_literal?(nil).should be_false
+      Example.new("str").divided_literal?(:x).should be_false
+      Example.new("str").divided_literal?([]).should be_true
+      Example.new("str").divided_literal?([:literal]).should be_true
+      Example.new("str").divided_literal?([:literal, 1]).should be_true
+      Example.new("str").divided_literal?([:divided_literal, 1]).should be_true
+      Example.new("str").divided_literal?(["slurg"]).should be_true
+    end
+  end
+  
   describe "better" do 
     it "should return false if tokens are the same as representation" do 
       x = Example.new("str")
