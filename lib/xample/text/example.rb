@@ -66,11 +66,15 @@ module Xample
         end
       end
       
-      def find_possible_literals_in_code(blk)
+      def parse_tree_for(blk)
         c = Class.new
         c.send :define_method, :synthetic_template_method, &blk
         tree = ParseTree.translate(c, :synthetic_template_method)
-        tree = tree[2][2]
+        tree[2][2]
+      end
+      
+      def find_possible_literals_in_code(blk)
+        tree = parse_tree_for(blk)
         @parsed_actions << tree
         literals = find_literals(tree)
         literals.inject([]) do |sum, val|
@@ -202,25 +206,48 @@ module Xample
         end
       end
       
-      def match_value(value, tvalue, values)
-        unless Array === value
-          return nil if (@options[:keep_case] ? tvalue != value : tvalue.downcase != value.downcase)
-          return nil if typeof(tvalue) != typeof(value)
-        else 
-          if value[0] == :literal
-            return nil if typeof(tvalue) != value[1]
-            values << to_type(tvalue, value[1])
-          elsif value[0] == :divided_literal
-            xval = value[1] ? [] : values.last
-            if value[1] && value[3] != 0
-              xval += @real_literals[value[2]][0][0, value[3]]
-            end
-            return nil if typeof(tvalue) != :str
-            xval << tvalue
-            values << xval if value[1]
-          end
+      def match_atom(value, tvalue)
+        (@options[:keep_case] ? value == tvalue : tvalue.downcase == value.downcase) &&
+          typeof(value) == typeof(tvalue)
+      end
+
+      def match_array_simple(value, tvalue, values)
+        if typeof(tvalue) == value[1]
+          values << to_type(tvalue, value[1])
+          return true
         end
-        return true
+      end
+      
+      def first_divided_value?(value)
+        value[1] && value[3] != 0
+      end
+      
+      def match_array_divided(value, tvalue, values)
+        xval = value[1] ? [] : values.last
+        if first_divided_value?(value) 
+          xval += @real_literals[value[2]][0][0, value[3]]
+        end
+
+        if typeof(tvalue) == :str
+          xval << tvalue
+          values << xval if value[1]
+          return true
+        end
+      end
+      
+      def match_array(value, tvalue, values)
+        case value[0]
+        when :literal
+          match_array_simple(value, tvalue, values)
+        when :divided_literal
+          match_array_divided(value, tvalue, values)
+        end
+      end
+      
+      def match_value(value, tvalue, values)
+        value.is_a?(Array) ?
+          match_array(value, tvalue, values) :
+          match_atom(value, tvalue)
       end
       
       def match_values(real, template)
@@ -261,32 +288,52 @@ module Xample
         end
       end
       
+      def replace_simple_literal(tree)
+        lit = @real_literals.find { |lit_value, lit_num| lit_value == tree[1].to_s}
+        if lit
+          case tree[1]
+          when Symbol
+            [:call, [:dvar, :"literal_value_#{lit[1]}"], :to_sym]
+          else
+            ([:dvar, :"literal_value_#{lit[1]}"])
+          end
+        else
+          tree.map { |v| replace_with_literals(v) }
+        end
+      end
+      
+      def find_literal_template(name)
+        @real_literals.find do |lit_value, _, _| 
+          lit_value.kind_of?(Array) && 
+            lit_value.join("_").to_sym == name
+        end
+      end
+      
+      def replace_call_literal(tree)
+        lit = find_literal_template(tree[2])
+        if lit
+          rest = replace_with_literals(tree[3])
+          name_and_method_name = [:array, [:dvar, :"literal_value_#{lit[1]}"]]
+          name_and_method_name += rest[1..-1] if rest
+          [:call, replace_with_literals(tree[1]), :send, name_and_method_name]
+        else
+          tree.map { |v| replace_with_literals(v) }
+        end
+      end
+      
       def replace_with_literals(tree)
         case tree
         when Array
           case tree[0]
           when :lit, :str
-            lit = @real_literals.find { |lit_value, lit_num| lit_value == tree[1].to_s}
-            if lit
-              case tree[1]
-              when Symbol
-                return [:call, [:dvar, :"literal_value_#{lit[1]}"], :to_sym]
-              else
-                return [:dvar, :"literal_value_#{lit[1]}"]
-              end
-            end
+            replace_simple_literal(tree)
           when :call
-            lit = @real_literals.find { |lit_value, _, _| lit_value.kind_of?(Array) && lit_value.join("_").to_sym == tree[2]}
-            if lit
-              rest = replace_with_literals(tree[3])
-              name_and_method_name = [:array, [:dvar, :"literal_value_#{lit[1]}"]]
-              name_and_method_name += rest[1..-1] if rest
-              return [:call, replace_with_literals(tree[1]), :send, name_and_method_name]
-            end            
+            replace_call_literal(tree)
+          else
+            tree.map { |v| replace_with_literals(v) }
           end
-          return tree.map { |v| replace_with_literals(v) }
         else
-          return tree
+          tree
         end
       end
       
@@ -329,22 +376,33 @@ module Xample
           return []
         end
       end
+
+      NUMBER = /[0-9](?:(?:[0-9,]*[0-9])|)/
       
-      def tokens_for(line)
-        number = /[0-9](?:(?:[0-9,]*[0-9])|)/
-        separate_tokens = Regexp.union(*@options[:separate_tokens])
-        ignores = ((@options[:ignore]-
-                    @options[:dont_ignore])+
-                   @options[:separate_tokens]).
+      def ignore_tokens
+        ((@options[:ignore]-
+          @options[:dont_ignore])+
+         @options[:separate_tokens]).
           join('').
           gsub('-', '\-').
           gsub(']', '\]')
+      end
 
+      def separate_tokens
+        Regexp.union(*@options[:separate_tokens])
+      end
+      
+      def token_pattern
+        /(#{NUMBER})|(#{separate_tokens})|([^#{ignore_tokens}]+)/
+      end
+      
+      def tokens_for(line)
         tokens = []
-        line.scan(/(#{number})|(#{separate_tokens})|([^#{ignores}]+)/) do |number, token, ignore|
-          if number
+        line.scan(token_pattern) do |number, token, ignore|
+          case
+          when number
             tokens << number.gsub(',','')
-          elsif token
+          when token
             if token == '=' && tokens.last == '='
               tokens[-1] = '=='
             else
