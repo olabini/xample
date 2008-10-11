@@ -29,9 +29,14 @@ module Xample
           hash
         end
       end
+
+      include Analyzer
       
       attr_reader :representation
       attr_reader :optionals
+      attr_reader :options
+      attr_reader :generated_actions
+      attr_reader :real_literals
       
       def initialize(str, options={})
         @options = Example.merge_options(options)
@@ -104,7 +109,7 @@ module Xample
       end
 
       def set_divided_literal_data(pl, real_literals)
-        match = sliding_find(@representation, pl)
+        match = Example.sliding_find(@representation, pl)
         if match
           (match[1]...(pl.length)).each do |lenix|
             @representation[match[0] + lenix - match[1]] = [:divided_literal, lenix == match[1], real_literals.length, lenix]
@@ -157,22 +162,7 @@ module Xample
       end
       
       def match(str)
-        ret = false
-        if self.line_division
-          str.each_line do |line|
-            ret |= simple_match(line.chomp) unless line.chomp == ''
-          end
-        end
-        ret
-      end
-      
-      protected
-      def simple_match(str)
-        tokens = tokens_for(str.chomp) - @optionals
-        values = match_values(tokens, @representation)
-        return false unless values
-        invoke_actions_with_values values
-        return true
+        ExampleMatcher.new(self).match(str)
       end
       
       #   * sliding_find([], [])                   #=> nil
@@ -183,9 +173,10 @@ module Xample
       #   * sliding_find([1,2,3,4,5], [1, 2])      #=> [0, 0]
       #   * sliding_find([1,2,3,4,5], [2])         #=> [1, 0]
       #   * sliding_find([1,2,3,4,5], [2, 3])      #=> [1, 0]
-      #   * sliding_find([1,2,3,4,5], [2, 4])      #=> nil
+      #   * sliding_find([1,2,3,4,5], [2, 6])      #=> nil
       #   * sliding_find([1,2,3,4,5], [-1, 0, 1])  #=> [0, 2]
-      def sliding_find(first, second)
+      #   * sliding_find([2,3,4,5], [-1, 0, 1, 3]) #=> [1, 3]
+      def self.sliding_find(first, second)
         return nil if second == [] || first == []
         len = first.length
         index = 0
@@ -200,82 +191,6 @@ module Xample
         nil
       end
 
-      def invoke_actions_with_values(values)
-        @generated_actions.each do |action|
-          action.call(*values)
-        end
-      end
-      
-      def match_atom(value, tvalue)
-        (@options[:keep_case] ? value == tvalue : tvalue.downcase == value.downcase) &&
-          typeof(value) == typeof(tvalue)
-      end
-
-      def match_array_simple(value, tvalue, values)
-        if typeof(tvalue) == value[1]
-          values << to_type(tvalue, value[1])
-          return true
-        end
-      end
-      
-      def first_divided_value?(value)
-        value[1] && value[3] != 0
-      end
-      
-      def match_array_divided(value, tvalue, values)
-        xval = value[1] ? [] : values.last
-        if first_divided_value?(value) 
-          xval += @real_literals[value[2]][0][0, value[3]]
-        end
-
-        if typeof(tvalue) == :str
-          xval << tvalue
-          values << xval if value[1]
-          return true
-        end
-      end
-      
-      def match_array(value, tvalue, values)
-        case value[0]
-        when :literal
-          match_array_simple(value, tvalue, values)
-        when :divided_literal
-          match_array_divided(value, tvalue, values)
-        end
-      end
-      
-      def match_value(value, tvalue, values)
-        value.is_a?(Array) ?
-          match_array(value, tvalue, values) :
-          match_atom(value, tvalue)
-      end
-      
-      def match_values(real, template)
-        values = []
-
-        return nil if template.length < real.length
-
-        template.each_with_index do |val, ti|
-          return nil unless match_value(val, real[ti], values)
-        end
-
-        transform_messages(values)
-      end
-      
-      def transform_messages(values)
-        values.map do |val|
-          if Array === val
-            unless @options[:keep_case]
-              val.join("_").downcase.to_sym
-            else
-              val.join("_").to_sym
-            end
-          else
-            val
-          end
-        end
-      end
-      
       def masng_for_literals(literals)
         if literals.empty?
           nil
@@ -337,26 +252,6 @@ module Xample
         end
       end
       
-      def typeof(val)
-        return :int if (Integer(val) rescue nil)
-        return :float if (Float(val) rescue nil)
-        return :sym if Regexp.union(*@options[:separate_tokens]) =~ val
-        return :str
-      end
-
-      def to_type(val, type)
-        case type
-        when :int
-          Integer(val)
-        when :float
-          Float(val)
-        when :sym
-          val.to_s
-        when :str
-          val.to_s
-        end
-      end
-      
       def find_literals(tree)
         case tree
         when Array
@@ -375,44 +270,6 @@ module Xample
         else
           return []
         end
-      end
-
-      NUMBER = /[0-9](?:(?:[0-9,]*[0-9])|)/
-      
-      def ignore_tokens
-        ((@options[:ignore]-
-          @options[:dont_ignore])+
-         @options[:separate_tokens]).
-          join('').
-          gsub('-', '\-').
-          gsub(']', '\]')
-      end
-
-      def separate_tokens
-        Regexp.union(*@options[:separate_tokens])
-      end
-      
-      def token_pattern
-        /(#{NUMBER})|(#{separate_tokens})|([^#{ignore_tokens}]+)/
-      end
-      
-      def tokens_for(line)
-        tokens = []
-        line.scan(token_pattern) do |number, token, ignore|
-          case
-          when number
-            tokens << number.gsub(',','')
-          when token
-            if token == '=' && tokens.last == '='
-              tokens[-1] = '=='
-            else
-              tokens << token
-            end
-          else
-            tokens << ignore
-          end
-        end
-        tokens
       end
       
       def analyze(line)

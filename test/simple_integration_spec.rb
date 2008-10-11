@@ -1,4 +1,4 @@
-require File.dirname(__FILE__) + "/test_helper"
+require File.expand_path(File.dirname(__FILE__) + "/test_helper")
 
 describe Xample::Text::DSL, "SimpleBonus" do 
   it "should invoke correct method with simple parameters" do 

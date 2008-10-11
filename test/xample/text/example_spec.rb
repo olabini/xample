@@ -1,4 +1,4 @@
-require File.dirname(__FILE__) + "/../../test_helper"
+require File.expand_path(File.dirname(__FILE__) + "/../../test_helper")
 
 include Xample::Text
 
@@ -125,7 +125,19 @@ describe Example do
   end
 
   describe "raw_literal?" do 
-    it "should recognize anything from @representation"
+    it "should recognize anything from @representation" do 
+      x = Example.new("str")
+      x.instance_variable_set(:@representation, [])
+      x.raw_literal?("foo").should be_false
+
+      x.instance_variable_set(:@representation, ["foo"])
+      x.raw_literal?("foo").should be_true
+
+      x.instance_variable_set(:@representation, ["foo", ["a", "b"]])
+      x.raw_literal?("foo").should be_true 
+      x.raw_literal?(["b", "a"]).should be_false
+      x.raw_literal?(["a", "b"]).should be_true
+    end
   end
 
   describe "divided_literal?" do 
@@ -140,7 +152,106 @@ describe Example do
       Example.new("str").divided_literal?(["slurg"]).should be_true
     end
   end
-  
+
+  describe "set_literal_data" do 
+    it "should change @representation" do 
+      x = Example.new("str")
+      x.instance_variable_set(:@representation, ["foo", "bar", "quux"])
+      real = ["one", "two"]
+      x.set_literal_data("bar", real)
+      x.representation.should == ["foo", [:literal, :str, 2], "quux"]
+    end
+
+    it "should add to real literals" do 
+      x = Example.new("str")
+      x.instance_variable_set(:@representation, ["foo", "bar", "quux"])
+      real = ["one", "two"]
+      x.set_literal_data("bar", real)
+      real.should == ["one", "two", ["bar", 1]]
+    end
+  end
+
+  describe "finalize_example" do 
+    it "should call the right methods" do 
+      x = Example.new("str")
+      x.should_receive(:analyze_lines!).ordered
+      x.should_receive(:analyze_literals!).ordered
+      x.should_receive(:generate_actions!).ordered
+      
+      x.finalize_example.should == x
+    end
+  end
+
+  describe "match" do 
+    it "should create new ExampleMatcher" do 
+      x = Example.new("str")
+      matcher = stub("matcher", :match => false)
+      ExampleMatcher.should_receive(:new).with(x).and_return(matcher)
+      x.match("foo")
+    end
+    
+    it "should call match on the new ExampleMatcher" do 
+      x = Example.new("str")
+      matcher = mock("matcher")
+      ExampleMatcher.should_receive(:new).and_return(matcher)
+      matcher.should_receive(:match).with("flux").and_return "NEJ"
+      x.match("flux").should == "NEJ"
+    end
+  end
+
+  describe "sliding_find" do 
+    it "should return nil if the first array is empty" do 
+      Example.sliding_find([], []).should be_nil
+      Example.sliding_find([], [1]).should be_nil
+    end
+
+    it "should return nil if the second array is empty" do 
+      Example.sliding_find([], []).should be_nil
+      Example.sliding_find([1], []).should be_nil
+    end
+    
+    it "shouldn't find an empty array" do 
+      Example.sliding_find([1,2,3,4,5], []).should be_nil
+    end
+    
+    it "shouldn't find anything in array with the wrong data" do 
+      Example.sliding_find([1,2,3,4,5], [0]).should be_nil
+    end
+    
+    it "should find a simple number correctly" do 
+      Example.sliding_find([1,2,3,4,5], [1]).should == [0,0]
+    end
+    
+    it "should find a stretch of numbers correctly" do 
+      Example.sliding_find([1,2,3,4,5], [1, 2]).should == [0,0]
+      Example.sliding_find([1,2,3,4,5], [1, 2, 3]).should == [0,0]
+    end
+    
+    it "should find a number that's not at the first position" do 
+      Example.sliding_find([1,2,3,4,5], [2]).should == [1,0]
+    end
+    
+    it "should find a stretch of numbers that aren't at the first position" do 
+      Example.sliding_find([1,2,3,4,5], [2, 3]).should == [1,0]
+    end
+    
+    it "should not find a stretch of number with holes that doesn't match" do 
+      Example.sliding_find([1,2,3,4,5], [2, 6]).should be_nil
+    end
+
+    it "should find unintuitive hole" do 
+      Example.sliding_find([1,2,3,4,5], [2, 4]).should == [3, 1]
+    end
+    
+    it "should be able to find something that's not in the first position of the search array" do 
+      Example.sliding_find([1,2,3,4,5], [-1, 0, 1]).should == [0, 2]
+    end
+
+    it "should be able to find something that's not in the first position of any array" do 
+      Example.sliding_find([2,3,4,5], [-1, 0, 1, 3]).should == [1, 3]
+    end
+  end
+
   describe "better" do 
     it "should return false if tokens are the same as representation" do 
       x = Example.new("str")
