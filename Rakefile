@@ -3,7 +3,6 @@ require 'rake/gempackagetask'
 require 'rake/rdoctask'
 require 'rake/testtask'
 require 'spec/rake/spectask'
-require 'ruby-tags'
 
 def flog(output, *directories)
   system("find #{directories.join(" ")} -name \\*.rb|xargs flog")
@@ -33,8 +32,6 @@ Rake::RDocTask.new do |task|
   task.options << "--line-numbers" << "--inline-source"
   task.rdoc_files.include('README', 'lib/**/*.rb')
 end
-
-Gem::manage_gems
 
 specification = Gem::Specification.new do |s|
   s.name   = "xample"
