@@ -1,27 +1,23 @@
 require 'rubygems'
-require 'rake/gempackagetask'
+require 'bundler/setup'
 require 'rake/rdoctask'
-require 'rake/testtask'
-require 'spec/rake/spectask'
+require 'rspec'
+require 'rspec/core/rake_task'
 
-def flog(output, *directories)
-  system("find #{directories.join(" ")} -name \\*.rb|xargs flog")
-end
+Bundler::GemHelper.install_tasks
 
 task :default => [:spec]
 
 desc "Flog all"
 task :flog do
-  flog "all", 'lib'
+  system("find all lib -name \\*.rb|xargs flog")
 end
 
 desc "Run all specs"
-Spec::Rake::SpecTask.new(:spec) do |t|
-  t.libs << "test"
-  t.libs << "lib"
-  t.spec_files = FileList['test/**/*_spec.rb']
+RSpec::Core::RakeTask.new(:spec) do |t|
+  t.pattern = 'test/**/*_spec.rb'
   t.verbose = true
-  t.spec_opts = ["-fs", "--color"]
+  t.rspec_opts = ["-fs", "--color"]
 end
 
 desc 'Generate RDoc'
@@ -31,27 +27,4 @@ Rake::RDocTask.new do |task|
   task.rdoc_dir = 'doc'
   task.options << "--line-numbers" << "--inline-source"
   task.rdoc_files.include('README', 'lib/**/*.rb')
-end
-
-specification = Gem::Specification.new do |s|
-  s.name   = "xample"
-  s.summary = "Xample allows you to use a template based approach to creating DSLs"
-  s.version = "0.0.1"
-  s.author = 'Ola Bini'
-  s.description = s.summary
-  s.homepage = 'http://xample.rubyforge.org'
-  s.rubyforge_project = 'xample'
-
-  s.has_rdoc = true
-  s.extra_rdoc_files = ['README']
-  s.rdoc_options << '--title' << 'xample' << '--main' << 'README' << '--line-numbers'
-
-  s.email = 'ola.bini@gmail.com'
-  s.files = FileList['{lib,test}/**/*.rb', '[A-Z]*$', 'Rakefile'].to_a
-#  s.add_dependency('mocha', '>= 0.5.5')
-end
-
-Rake::GemPackageTask.new(specification) do |package|
-  package.need_zip = false
-  package.need_tar = false
 end

@@ -1,6 +1,7 @@
 $:.unshift File.join(File.dirname(__FILE__), '..', 'lib')
 require 'rubygems'
-require 'spec'
+require 'bundler/setup'
+require 'rspec'
 require 'xample'
 require 'singleton'
 
