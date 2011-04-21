@@ -16,10 +16,10 @@ Gem::Specification.new do |s|
   s.add_dependency 'ParseTree', '2.2.0'
 
   s.add_development_dependency 'rspec', '~>2.5'
+  s.add_development_dependency 'ci_reporter', '~>1.6'
 
   s.rubyforge_project = "xample"
 
-  s.has_rdoc = true
   s.extra_rdoc_files = ['README']
   s.rdoc_options << '--title' << 'xample' << '--main' << 'README' << '--line-numbers'
 

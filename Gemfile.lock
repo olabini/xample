@@ -14,6 +14,9 @@ GEM
     RubyInline (3.9.0)
       ZenTest (~> 4.3)
     ZenTest (4.5.0)
+    builder (3.0.0)
+    ci_reporter (1.6.4)
+      builder (>= 2.1.2)
     diff-lcs (1.1.2)
     hoe (2.9.4)
       rake (>= 0.8.7)
@@ -34,5 +37,6 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  ci_reporter (~> 1.6)
   rspec (~> 2.5)
   xample!

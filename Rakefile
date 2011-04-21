@@ -3,6 +3,7 @@ require 'bundler/setup'
 require 'rake/rdoctask'
 require 'rspec'
 require 'rspec/core/rake_task'
+require 'ci/reporter/rake/rspec'
 
 Bundler::GemHelper.install_tasks
 
